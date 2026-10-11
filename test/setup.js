@@ -43,7 +43,7 @@ const fakeRest = (table) => {
 
 // The library as a page loads it. Loading it makes a DRApp on the page the harness started with.
 
-const Relations = require('../dist/relations.js')
+const RelationsDR = require('../dist/relations.js')
 const fixtures = require('./fixtures.js')
 
 // A new page with a new application on it, as the globals the library reaches for, so one test's
@@ -56,14 +56,14 @@ const boot = (table = {}, html = '', { attach = true } = {}) => {
     globalThis.window = pane
     globalThis.document = pane.document
 
-    const app = Relations.install(new DoTRoute.Application('body', pane, true))
+    const app = RelationsDR.install(new DoTRoute.Application('body', pane, true))
 
     // The templates say DRApp: on a page that's window.DRApp, here it's a global.
     pane.DRApp = globalThis.DRApp = app
     app.title = 'Test App'
     app.rest = fakeRest(table)
 
-    // What Relations.start does, so the application is as a started one is.
+    // What RelationsDR.start does, so the application is as a started one is.
     if (attach) {
         app.models = fixtures.models.models
         app.route('home', '/', 'Home', 'Base', 'home')
@@ -87,4 +87,4 @@ const visit = (app, path) => {
 
 const text = (selector = 'body') => document.querySelector(selector).textContent.replace(/\s+/g, ' ').trim()
 
-module.exports = { dom, page, fakeRest, DoTRoute, Relations, fixtures, boot, visit, text }
+module.exports = { dom, page, fakeRest, DoTRoute, RelationsDR, fixtures, boot, visit, text }

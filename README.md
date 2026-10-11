@@ -25,13 +25,13 @@ That needs `dotroute`, `dot` and `@unum-pillars/uikit`, which npm brings along a
         <script src="doT.js"></script>
         <script src="doTRoute.js"></script>
         <script src="relations.js"></script>
-        <script>Relations.start()</script>
+        <script>RelationsDR.start()</script>
     </head>
     <body></body>
 </html>
 ```
 
-The page's `<title>` is the app's title, in the header and on the home page. `DRApp` is the doTRoute application: set `DRApp.title`, add your own routes, or replace `DRApp.rest` (below) before calling `Relations.start()`.
+The page's `<title>` is the app's title, in the header and on the home page. `DRApp` is the doTRoute application: set `DRApp.title`, add your own routes, or replace `DRApp.rest` (below) before calling `RelationsDR.start()`.
 
 ## What it asks the API
 

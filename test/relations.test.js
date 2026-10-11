@@ -1,6 +1,6 @@
 const { describe, it, afterEach } = require('node:test')
 const assert = require('node:assert/strict')
-const { Relations, DoTRoute, fixtures, boot, visit, text, page } = require('./setup.js')
+const { RelationsDR, DoTRoute, fixtures, boot, visit, text, page } = require('./setup.js')
 
 const realFetch = globalThis.fetch
 
@@ -160,7 +160,7 @@ describe("DRApp.http", () => {
         const { window: pane } = page()
         globalThis.window = pane
         globalThis.document = pane.document
-        const app = Relations.install(new DoTRoute.Application("body", pane, true))
+        const app = RelationsDR.install(new DoTRoute.Application("body", pane, true))
 
         assert.equal(app.rest, app.http)
 
@@ -197,14 +197,14 @@ describe("DRApp.error", () => {
 
 })
 
-describe("Relations.install", () => {
+describe("RelationsDR.install", () => {
 
     it("fetches no template files: they're inlined", () => {
 
         const app = boot()
 
-        assert.equal(app.load("header"), Relations.templates.header)
-        assert.deepEqual(Object.keys(Relations.templates).sort(),
+        assert.equal(app.load("header"), RelationsDR.templates.header)
+        assert.deepEqual(Object.keys(RelationsDR.templates).sort(),
             ["create", "fields", "footer", "form", "header", "home", "list", "retrieve", "update"])
 
     })
@@ -216,6 +216,26 @@ describe("Relations.install", () => {
         assert.equal(typeof window.DRApp.title, "string")
         assert.equal(typeof window.DRApp.controllers.Model, "object")
         assert.equal(pane.document.title, "Some Title")
+
+    })
+
+})
+
+describe("loaded as a script", () => {
+
+    it("is the global RelationsDR, leaving Relations to @relations-dil/relations", () => {
+
+        const { JSDOM } = require('jsdom')
+        const fs = require('node:fs')
+        const { window: pane } = new JSDOM('<title>Script</title>', { url: 'http://localhost/', runScripts: 'outside-only' })
+
+        pane.eval(fs.readFileSync(require.resolve('dot/doT.js'), 'utf8'))
+        pane.eval(fs.readFileSync(require.resolve('dotroute'), 'utf8'))
+        pane.eval(fs.readFileSync(require.resolve('../dist/relations.js'), 'utf8'))
+
+        assert.equal(pane.eval('typeof RelationsDR.start'), "function")
+        assert.equal(pane.eval('typeof Relations'), "undefined")
+        assert.equal(pane.eval('DRApp.title'), "Script")
 
     })
 
@@ -267,13 +287,13 @@ describe("model and attach", () => {
 
 })
 
-describe("Relations.start", () => {
+describe("RelationsDR.start", () => {
 
     it("fetches the models, makes the routes, starts routing and shows home", async () => {
 
         const app = boot({ "GET api/model": fixtures.models }, "", { attach: false })
 
-        await Relations.start()
+        await RelationsDR.start()
 
         assert.deepEqual(app.rest.calls.map((call) => `${call.type} ${call.url}`), ["GET api/model"])
         assert.equal(app.models, fixtures.models.models)
@@ -289,7 +309,7 @@ describe("Relations.start", () => {
 
         app.rest = async () => { throw new Error("GET: api/model failed: down") }
 
-        await Relations.start()
+        await RelationsDR.start()
 
         assert.equal(text("#relations-error"), "GET: api/model failed: down")
 
@@ -301,7 +321,7 @@ describe("Relations.start", () => {
 
         window.location.hash = "#/nowhere"
 
-        await Relations.start()
+        await RelationsDR.start()
 
         assert.equal(text("#relations-error"), "Unable to route: #/nowhere")
 
