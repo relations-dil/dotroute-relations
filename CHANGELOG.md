@@ -18,6 +18,7 @@ All notable changes to this project are recorded here, newest first. Format foll
 - **Async throughout:** `DRApp.rest` (`DRApp.http`, now `fetch`) and every controller action are async. Apps call `RelationsDR.start()` instead of reading `DRApp.rest("GET", "api/model")` themselves.
 - A screen that's still waiting on the API when you navigate away doesn't draw over the page you went to, or send you back after a save, and a failing action is shown instead of an unhandled rejection. (dotroute doesn't await actions, so the package does this itself.)
 - `DRApp.rest` no longer pops an `alert` when a request fails: it throws an error with the API's message, shown at the top of the page.
+- **The example gui uses the packages** (#17): `gui/` no longer carries its own jQuery, UIkit 2, doT, doTRoute, `relations.js` or templates. Its Dockerfile installs `@relations-dil/dotroute`, `@unum-pillars/uikit`, `dot` and `dotroute` from npm and serves what the page loads from `/vendor`; `index.html` calls `RelationsDR.start()`. Checked in a browser against the Python API, with the package from a local tarball. It needs `@relations-dil/dotroute` published to build, and gets a lockfile and `npm ci` after.
 - The list links to a record by its id field, whatever it's named, not always `id`.
 - `fields.html` formats options and values with `DRApp.format`, as this repo's version already did.
 
