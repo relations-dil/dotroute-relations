@@ -2,9 +2,9 @@ FROM node:22.9.0-alpine3.20 AS vendor
 
 WORKDIR /opt/service
 
-COPY package.json .
+COPY package.json package-lock.json ./
 
-RUN npm install --omit=dev --no-audit --no-fund
+RUN npm ci --omit=dev --no-audit --no-fund
 
 # Only what the page loads, from the packages that own it.
 RUN mkdir -p vendor \
