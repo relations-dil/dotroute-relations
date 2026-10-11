@@ -22,5 +22,33 @@ pipeline {
                 sh 'make setup'
             }
         }
+        stage('gui build') {
+            steps {
+                dir('gui') {
+                    sh 'make build'
+                }
+            }
+        }
+        stage('api build') {
+            steps {
+                dir('api') {
+                    sh 'make build'
+                }
+            }
+        }
+        stage('api test') {
+            steps {
+                dir('api') {
+                    sh 'make test'
+                }
+            }
+        }
+        stage('api lint') {
+            steps {
+                dir('api') {
+                    sh 'make lint'
+                }
+            }
+        }
     }
 }
