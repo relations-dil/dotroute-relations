@@ -29,8 +29,9 @@
   },
   "scripts": {
     "build": "node build.js",
-    "test": "node --test --experimental-test-coverage --test-coverage-exclude='test/**' --test-reporter=spec test/*.test.js",
-    "lint": "eslint ."
+    "test": "npm run build && node --test --experimental-test-coverage --test-coverage-exclude='test/**' --test-reporter=spec test/*.test.js",
+    "lint": "eslint .",
+    "prepack": "npm run build"
   },
   "peerDependencies": {
     "@unum-pillars/uikit": "^0.1.0",

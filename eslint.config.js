@@ -9,7 +9,7 @@ module.exports = [
         files: ['lib/**/*.js'],
         languageOptions: {
             sourceType: 'script',
-            globals: { ...globals.browser, ...globals.commonjs, DoTRoute: 'readonly', doT: 'readonly' }
+            globals: { ...globals.browser, ...globals.commonjs, DoTRoute: 'readonly', doT: 'readonly', RelationsTemplates: 'readonly' }
         }
     },
     {

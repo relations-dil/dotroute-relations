@@ -8,4 +8,5 @@ COPY package.json package-lock.json ./
 
 RUN npm ci
 
-COPY eslint.config.js ./
+COPY build.js eslint.config.js ./
+COPY lib lib

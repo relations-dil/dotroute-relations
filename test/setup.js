@@ -14,6 +14,9 @@ globalThis.doT = require('dot')
 
 const DoTRoute = require('dotroute')
 
+// A page has DoTRoute as a global, since it's a script.
+globalThis.DoTRoute = DoTRoute
+
 // DRApp.rest, answered from a table of "TYPE url" to a response: an object is sent back as is, a
 // function is called with the request's data. Every request is recorded in .calls. A request
 // that isn't in the table fails, so a test that asks for something unexpected says so.
@@ -38,4 +41,50 @@ const fakeRest = (table) => {
     return rest
 }
 
-module.exports = { dom, page, fakeRest, DoTRoute }
+// The library as a page loads it. Loading it makes a DRApp on the page the harness started with.
+
+const Relations = require('../dist/relations.js')
+const fixtures = require('./fixtures.js')
+
+// A new page with a new application on it, as the globals the library reaches for, so one test's
+// listeners and DOM never reach into another's. The application knows the fixtures' models and
+// answers rest from the table given.
+
+const boot = (table = {}, html = '', { attach = true } = {}) => {
+    const { window: pane } = page(html)
+
+    globalThis.window = pane
+    globalThis.document = pane.document
+
+    const app = Relations.install(new DoTRoute.Application('body', pane, true))
+
+    // The templates say DRApp: on a page that's window.DRApp, here it's a global.
+    pane.DRApp = globalThis.DRApp = app
+    app.title = 'Test App'
+    app.rest = fakeRest(table)
+
+    // What Relations.start does, so the application is as a started one is.
+    if (attach) {
+        app.models = fixtures.models.models
+        app.route('home', '/', 'Home', 'Base', 'home')
+        app.attach()
+    }
+
+    return app
+}
+
+// Go to a path as the router would, and resolve when the route's action has finished.
+
+const visit = (app, path) => {
+    if (!app.match(path)) {
+        throw new Error(`no route for ${path}`)
+    }
+
+    return app.current.route.enter(app)
+}
+
+// What's in the page, or in part of it, as one line of text.
+
+const text = (selector = 'body') => document.querySelector(selector).textContent.replace(/\s+/g, ' ').trim()
+
+module.exports = { dom, page, fakeRest, DoTRoute, Relations, fixtures, boot, visit, text }
