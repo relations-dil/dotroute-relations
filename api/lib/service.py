@@ -4,6 +4,8 @@ Module for the OPenGUI API
 
 # pylint: disable=no-self-use
 
+import sys
+
 import flask
 import flask_restx
 
@@ -18,8 +20,6 @@ def build():
     Builds the Flask App
     """
 
-    import service
-
     app = flask.Flask("dotroute-relations-api")
     api = flask_restx.Api(app)
 
@@ -30,7 +30,7 @@ def build():
 
     api.add_resource(Health, '/health')
 
-    relations_restx.attach(api, service, relations.models(dotroute_relations, dotroute_relations.Base))
+    relations_restx.attach(api, sys.modules[__name__], relations.models(dotroute_relations, dotroute_relations.Base))
 
     return app
 
@@ -46,5 +46,8 @@ class Health(flask_restx.Resource):
         return {"message": "OK"}
 
 class Person(flask_restx.Resource):
+    """
+    Resource for the Person model
+    """
 
     MODEL = dotroute_relations.Person

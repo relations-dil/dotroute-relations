@@ -8,6 +8,7 @@ All notable changes to this project are recorded here, newest first. Format foll
 ### Added
 - **The package `@relations-dil/dotroute`** (#17): the generic Relations UI that was copied into every app (`relations.js` and its templates) as one script, `dist/relations.js`, with the templates inlined, built by `node build.js` from `lib/`. It needs `dotroute`, `dot` and `@unum-pillars/uikit` (peer dependencies) and no jQuery. `RelationsDR.start()` fetches the models, adds the home route and the models' routes, and starts routing, so an app's `service.js` is one line.
 - The script's global is `RelationsDR`, not `Relations`, so a page can also load `@relations-dil/relations`, whose global is `Relations`.
+- The Jenkinsfile builds the gui image, and builds, tests and lints the example API, after the package's stages (#19).
 - UIkit 3 templates (from `cumulus`'s), with the navbar in a bar the width of the page and the content in a container. The header and home page take their title from `DRApp.title`, the page's `<title>` by default, so apps need no `header.html` or `home.html` of their own.
 - Rows that open a record show a pointer (`style="cursor: pointer"`), so the page needs no CSS of its own for it.
 - A failed request, or form JSON that won't parse, shows as a message at the top of the page (`DRApp.error`) without redrawing, so what was typed stays.
@@ -23,6 +24,7 @@ All notable changes to this project are recorded here, newest first. Format foll
 - `fields.html` formats options and values with `DRApp.format`, as this repo's version already did.
 
 ### Fixed
+- The example API passes its own checks (#19): 100% coverage, with tests for `now` and `subnet_attr`, and pylint at 10, with docstrings and `service` found through `sys.modules` rather than imported inside `build()`.
 - The example API builds again: `api/requirements.txt` pins the flask stack the way python-relations-restx does (`jsonschema==4.17.3` and friends) and uses `relations-restx==0.6.5`.
 - `DRApp.get` no longer leaks a global named `place`.
 - A search is URL encoded, and the search box keeps what was searched for.
