@@ -22,6 +22,7 @@ All notable changes to this project are recorded here, newest first. Format foll
 - `fields.html` formats options and values with `DRApp.format`, as this repo's version already did.
 
 ### Fixed
+- The example API builds again: `api/requirements.txt` pins the flask stack the way python-relations-restx does (`jsonschema==4.17.3` and friends) and uses `relations-restx==0.6.5`.
 - `DRApp.get` no longer leaks a global named `place`.
 - A search is URL encoded, and the search box keeps what was searched for.
 - A set typed as words ignores extra spaces, and sends `[]`, not `[""]`, when there are none.
