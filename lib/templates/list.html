@@ -30,7 +30,7 @@
 {{~it[DRApp.current.controller.model.plural] :model}}
             <tr
     {{? DRApp.current.controller.model.id }}
-            OnClick="DRApp.go('{{! DRApp.current.controller.model.singular }}_retrieve','{{=model[DRApp.current.controller.model.id]}}')" class="clickable"
+            OnClick="DRApp.go('{{! DRApp.current.controller.model.singular }}_retrieve','{{=model[DRApp.current.controller.model.id]}}')" style="cursor: pointer"
     {{?}}
             >
     {{~DRApp.current.controller.model.list :field}}

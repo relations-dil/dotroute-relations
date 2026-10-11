@@ -349,6 +349,22 @@ describe("the form and its screens", () => {
 
     })
 
+    it("shows a pointer over the rows that open a record, in the row itself since the package ships no CSS", async () => {
+
+        const app = boot({ "GET api/unit": () => ({ ...fixtures.units }) })
+
+        await visit(app, "/unit")
+
+        const rows = all("tbody tr")
+
+        assert.ok(rows.length > 0)
+        rows.forEach((row) => {
+            assert.equal(row.style.cursor, "pointer")
+            assert.equal(row.classList.contains("clickable"), false)
+        })
+
+    })
+
     it("says when a search found too many to show", async () => {
 
         const app = boot({ "GET api/unit": () => ({ ...fixtures.units, overflow: true }) })
