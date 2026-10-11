@@ -61,6 +61,10 @@ relations.OneToMany(Person, Thing)
 
 
 class Meta(Base):
+    """
+    Meta model, with fields that extract from and inject into others
+    """
+
     id = int
     name = str
     flag = bool
@@ -72,6 +76,9 @@ class Meta(Base):
 
 
 def subnet_attr(values, value):
+    """
+    Spreads a network out into the values stored for it
+    """
 
     values["address"] = str(value)
     min_ip = value[0]
@@ -82,6 +89,9 @@ def subnet_attr(values, value):
     values["max_value"] = int(max_ip)
 
 class Net(Base):
+    """
+    Net model, with fields that are IP addresses and networks
+    """
 
     id = int
     proto = {"UDP", "TCP"}
