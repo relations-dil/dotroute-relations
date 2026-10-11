@@ -1,7 +1,3 @@
-.clickable {
-  cursor: pointer;
-}
-
 /* Large screen and bigger */
 @media (min-width: 1220px) {
   .uk-container {

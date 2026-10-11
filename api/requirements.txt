@@ -1,5 +1,10 @@
-opengui==0.9.0
-relations-restx==0.6.2
+relations-restx==0.6.5
+Werkzeug==2.1.2
+flask==2.1.2
+flask-restx==0.5.1
+jsonschema==4.17.3
+MarkupSafe==2.1.5
+click==8.1.8
 ptvsd==4.3.2
 coverage==5.2.1
 pylint==2.5.3

@@ -20,9 +20,9 @@
         var pre = field.name == "yaml" || field.kind == "list" || field.kind == "dict" || field.init;
     }}
     {{?field.fields || field.name == "yaml"}}
-    <div class="uk-form-row"><hr/></div>
+    <div class="uk-margin"><hr/></div>
     {{?}}
-    <div class="uk-form-row">
+    <div class="uk-margin">
         <label class="uk-form-label" for="{{=field.name}}"><strong>{{=field.title || field.name}}</strong></label>
         <div class="uk-form-controls">
     {{?style == "textarea"}}
@@ -30,7 +30,7 @@
             {{?pre}}<pre>{{?}}{{=value || ''}}{{?pre}}</pre>{{?}}
         {{??}}
             <textarea
-                rows='7' cols='42'
+                class="uk-textarea" rows="7"
                 id="{{!full_name}}"
                 placeholder="{{!field.title || field.name}}"
                 {{?field.trigger}}OnInput="DRApp.current.controller.fields_change();"{{?}}
@@ -45,8 +45,8 @@
             {{??}}
                 {{= DRApp.format(value, field.format, field.titles) }}<br/>
             {{?}}
-        {{??style == "select" || field.options > 10 || field.overflow || field.like}}
-            <select id="{{!full_name}}" {{?field.trigger}}OnChange="DRApp.current.controller.fields_change();"{{?}}>
+        {{??style == "select" || field.options.length > 10 || field.overflow || field.like || field.titles}}
+            <select class="uk-select" id="{{!full_name}}" {{?field.trigger}}OnChange="DRApp.current.controller.fields_change();"{{?}}>
             {{?field.optional}}
                 <option value=''></option>
             {{?}}
@@ -58,6 +58,7 @@
             </select>
             {{?field.options.length > 25 || field.overflow || field.like}}
             <input
+                class="uk-input uk-form-width-medium"
                 id="{{!full_name}}__like" value="{{!field.like || ''}}"
                 type="text"
             />
@@ -70,18 +71,20 @@
             {{?}}
         {{??}}
             {{~field.options :option}}
+            <label>
             <input
                 value="{{!option}}"
             {{?field.multi || field.kind == "set"}}
-                type="checkbox" name="{{!full_name}}"
+                class="uk-checkbox" type="checkbox" name="{{!full_name}}"
                 {{?value.indexOf(option) > -1}}checked{{?}}
             {{??}}
-                type="radio" name="{{!full_name}}"
+                class="uk-radio" type="radio" name="{{!full_name}}"
                 {{?value == option}}checked{{?}}
             {{?}}
                 {{?field.trigger}}OnClick="DRApp.current.controller.fields_change();"{{?}}
             />
-                {{=DRApp.format(option, field.format, field.titles)}}<br/>
+                {{=DRApp.format(option, field.format, field.titles)}}
+            </label><br/>
             {{~}}
         {{?}}
     {{??!field.fields}}
@@ -89,6 +92,7 @@
             {{~Object.values(field.init) :attr}}
             <strong>{{= attr }}</strong>
             <input
+                class="uk-input"
                 id="{{!full_name}}__{{!attr}}"
                 placeholder="{{!attr}}"
                 value="{{!value ? DRApp.format(value[attr]) : ''}}"
@@ -102,6 +106,7 @@
             {{= value ? 'true' : 'false' }}
             {{??}}
             <input
+                class="uk-checkbox"
                 id="{{!full_name}}"
                 value="1"
                 type="checkbox"
@@ -114,6 +119,7 @@
             {{=DRApp.format(value, field.format, field.titles)}}
             {{??}}
             <input
+                class="uk-input"
                 id="{{!full_name}}"
                 placeholder="{{!field.title || field.name}}"
                 value="{{!DRApp.format(value)}}"
@@ -125,14 +131,14 @@
             <br/>
     {{?}}
     {{?field.errors}}
-            <span class='uk-form uk-text-danger'>
+            <span class='uk-text-danger'>
         {{~field.errors :error}}
                 {{=error}}
         {{~}}
             </span>
     {{?}}
     {{?field.description}}
-            <dfn>{{=field.description.replace(/\n/g, "<br/>")}}</dfn><br/>
+            <div class="uk-text-meta">{{=field.description.replace(/\n/g, "<br/>")}}</div>
     {{?}}
     {{?field.link}}
         {{ var links = Array.isArray(field.link) ? field.link : [field.link]; }}
