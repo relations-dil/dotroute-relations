@@ -6,6 +6,7 @@ All notable changes to this project are recorded here, newest first. Format foll
 ## [Unreleased]
 
 ### Added
+- **Releases like the Python repos** (#24): `make new` (next version, branch, `VERSION`, `package.json`, the lockfile, a dated changelog section), `make release-check`, and `make release` (the checks, `npm publish`, wait for the registry, the tag), with their scripts in `scripts/` and `make test-release` to test them against a throwaway repo and a fake registry. Jenkins runs `make test-release` and, on `main`, `make release`, so a merged release publishes. `make help` lists the targets, and `make tag` no longer fails when the tag exists.
 - **`RelationsDR.start({model_path})`** (#21): where the API serves its models, with its trailing slash, `"api/"` by default, so an app whose API serves them under `api/model/` starts with `RelationsDR.start({model_path: "api/model/"})`. A model's url is `model_path` plus its singular name (`DRApp.model_path`, which can also be set before `start()`); `GET api/model`, the list of models, is the same either way. Apps that don't set it change nothing.
 - **The package `@relations-dil/dotroute`** (#17): the generic Relations UI that was copied into every app (`relations.js` and its templates) as one script, `dist/relations.js`, with the templates inlined, built by `node build.js` from `lib/`. It needs `dotroute`, `dot` and `@unum-pillars/uikit` (peer dependencies) and no jQuery. `RelationsDR.start()` fetches the models, adds the home route and the models' routes, and starts routing, so an app's `service.js` is one line.
 - The script's global is `RelationsDR`, not `Relations`, so a page can also load `@relations-dil/relations`, whose global is `Relations`.
@@ -17,6 +18,7 @@ All notable changes to this project are recorded here, newest first. Format foll
 - Scaffolding for the npm package `@relations-dil/dotroute` (#17): `VERSION` (0.6.4, continuing this repo's tag series), `package.json`, an MIT `LICENSE`, Docker and make (`make build|shell|test|lint|version`, with the Tilt `up`, `down`, `tag` and `untag` kept), ESLint, and a test harness: jsdom plus a fake `rest` that answers from fixtures shaped like the real relations-restx responses.
 
 ### Changed
+- `make version` sets `VERSION` and the package files (`V=+0.0.1|+0.1|+1|x.y.z`) as in the Python repos; making `package.json` and the lockfile say what `VERSION` says is now `make sync`.
 - **Async throughout:** `DRApp.rest` (`DRApp.http`, now `fetch`) and every controller action are async. Apps call `RelationsDR.start()` instead of reading `DRApp.rest("GET", "api/model")` themselves.
 - A screen that's still waiting on the API when you navigate away doesn't draw over the page you went to, or send you back after a save, and a failing action is shown instead of an unhandled rejection. (dotroute doesn't await actions, so the package does this itself.)
 - `DRApp.rest` no longer pops an `alert` when a request fails: it throws an error with the API's message, shown at the top of the page.
