@@ -329,6 +329,151 @@ describe("RelationsDR.start", () => {
 
 })
 
+describe("model_path", () => {
+
+    const one = () => ({ fields: [{ name: "id", kind: "int", readonly: true, original: 2 }, { name: "name", kind: "str", required: true, original: "stuff" }], errors: [] })
+
+    // An app on the models-under-api/model/ layout, started the way a page starts it.
+    const started = async (table) => {
+
+        const app = boot({ "GET api/model": fixtures.models, ...table }, "", { attach: false })
+
+        await RelationsDR.start({ model_path: "api/model/" })
+
+        return app
+
+    }
+
+    const requests = (app) => app.rest.calls.map((call) => `${call.type} ${call.url}`)
+
+    it("is api/ until it's set", () => {
+
+        assert.equal(boot().model_path, "api/")
+
+    })
+
+    it("stays api/ when start gets no options, or options without one", async () => {
+
+        const app = boot({ "GET api/model": fixtures.models }, "", { attach: false })
+
+        await RelationsDR.start({})
+
+        assert.equal(app.model_path, "api/")
+        assert.equal(app.controllers.Unit.url(), "api/unit")
+
+        await RelationsDR.start()
+
+        assert.equal(app.model_path, "api/")
+
+    })
+
+    it("is what start is given", async () => {
+
+        const app = await started({})
+
+        assert.equal(app.model_path, "api/model/")
+
+    })
+
+    it("asks for the models at api/model, in either layout", async () => {
+
+        const app = await started({})
+
+        assert.deepEqual(requests(app), ["GET api/model"])
+        assert.equal(app.models, fixtures.models.models)
+
+    })
+
+    it("makes the models' urls under it", async () => {
+
+        const app = await started({})
+        const unit = app.controllers.Unit
+
+        assert.equal(unit.url(), "api/model/unit")
+        assert.equal(unit.url({}), "api/model/unit")
+        assert.equal(unit.url({ like: "a b&c" }), "api/model/unit?like=a+b%26c")
+
+        app.match("/unit/7")
+        assert.equal(unit.id_url(), "api/model/unit/7")
+
+    })
+
+    it("lists and searches there", async () => {
+
+        const app = await started({
+            "GET api/model/unit": () => ({ ...fixtures.units }),
+            "GET api/model/unit?like=stu": { units: [{ id: 2, name: "stuff" }], overflow: false, formats: {} }
+        })
+
+        await visit(app, "/unit")
+
+        assert.equal(document.querySelectorAll("tbody tr").length, 2)
+
+        document.getElementById("like").value = "stu"
+        await app.controllers.Unit.search()
+
+        assert.equal(app.rest.calls.at(-1).url, "api/model/unit?like=stu")
+        assert.equal(document.querySelectorAll("tbody tr").length, 1)
+
+    })
+
+    it("creates there", async () => {
+
+        const app = await started({
+            "OPTIONS api/model/unit": (data) => data ? { ...fixtures.newUnit, errors: [] } : fixtures.newUnit,
+            "POST api/model/unit": { unit: { id: 3, name: "new" } }
+        })
+
+        await visit(app, "/unit/create")
+        document.getElementById("name").value = "new"
+        await app.controllers.Unit.create_save()
+
+        assert.deepEqual(requests(app).slice(1), ["OPTIONS api/model/unit", "OPTIONS api/model/unit", "POST api/model/unit"])
+        assert.equal(window.location.hash, "#/unit/3")
+
+    })
+
+    it("retrieves and updates there", async () => {
+
+        const app = await started({ "OPTIONS api/model/unit/2": one, "PATCH api/model/unit/2": { updated: 1 } })
+
+        await visit(app, "/unit/2/update")
+        document.getElementById("name").value = "things"
+        await app.controllers.Unit.update_save()
+
+        assert.deepEqual(requests(app).slice(1), ["OPTIONS api/model/unit/2", "OPTIONS api/model/unit/2", "PATCH api/model/unit/2"])
+        assert.deepEqual(app.rest.calls.at(-1).data, { unit: { name: "things" }, likes: {} })
+
+    })
+
+    it("deletes there", async () => {
+
+        const app = await started({ "OPTIONS api/model/unit/2": one, "DELETE api/model/unit/2": { deleted: 1 } })
+
+        window.confirm = () => true
+        globalThis.confirm = () => true
+
+        await visit(app, "/unit/2")
+        await app.controllers.Unit.delete()
+
+        assert.deepEqual(requests(app).slice(1), ["OPTIONS api/model/unit/2", "DELETE api/model/unit/2"])
+        assert.equal(window.location.hash, "#/unit")
+
+    })
+
+    it("can be set on DRApp before start, which start then leaves alone", async () => {
+
+        const app = boot({ "GET api/model": fixtures.models }, "", { attach: false })
+
+        app.model_path = "api/model/"
+        await RelationsDR.start()
+
+        assert.equal(app.controllers.Unit.url(), "api/model/unit")
+
+    })
+
+})
+
 describe("controllers", () => {
 
     const unitRows = () => [...document.querySelectorAll("tbody tr")].map((row) => text.call(null, "tbody tr:nth-child(" + (1 + [...document.querySelectorAll("tbody tr")].indexOf(row)) + ")"))
