@@ -25,6 +25,7 @@ All notable changes to this project are recorded here, newest first. Format foll
 - `fields.html` formats options and values with `DRApp.format`, as this repo's version already did.
 
 ### Fixed
+- Installing the package from a git commit (`git+https://github.com/relations-dil/dotroute-relations.git#<sha>`) gives a working package: `dist/relations.js` is built by `prepare`, not just `prepack`, since `dist/` isn't committed. The Dockerfile installs with `npm ci --ignore-scripts` because `lib/` isn't copied in yet at that point.
 - The example API passes its own checks (#19): 100% coverage, with tests for `now` and `subnet_attr`, and pylint at 10, with docstrings and `service` found through `sys.modules` rather than imported inside `build()`.
 - The example API builds again: `api/requirements.txt` pins the flask stack the way python-relations-restx does (`jsonschema==4.17.3` and friends) and uses `relations-restx==0.6.5`.
 - `DRApp.get` no longer leaks a global named `place`.
