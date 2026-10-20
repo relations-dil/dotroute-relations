@@ -40,6 +40,16 @@ The page's `<title>` is the app's title, in the header and on the home page. `DR
 
 That's the [relations-restx](https://github.com/relations-dil/python-relations-restx) contract.
 
+### Models under `api/model/`
+
+An API that serves its models under `api/model/` (`api/model/<model>` and `api/model/<model>/<id>`, with the same methods) is started with the `model_path` option, which ends in a slash:
+
+```js
+RelationsDR.start({model_path: "api/model/"})
+```
+
+It's `api/` when not given, so an API like relations-restx's needs nothing. `GET api/model`, the list of models, is the same in both layouts. `DRApp.model_path` can also be set before calling `start()`.
+
 ## It's all async
 
 Everything that talks to the API is async, so nothing blocks the page. `DRApp.rest(type, url, data)` is the one place requests go through, and it resolves to the response's JSON. By default it's `DRApp.http`, which uses `fetch` and throws, with the API's message, when a request fails; replace `DRApp.rest` to send requests another way.

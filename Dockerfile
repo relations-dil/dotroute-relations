@@ -6,7 +6,8 @@ WORKDIR /opt/service
 
 COPY package.json package-lock.json ./
 
-RUN npm ci
+# build.js and lib/ aren't copied yet, so skip this package's own prepare (the build).
+RUN npm ci --ignore-scripts
 
 COPY build.js eslint.config.js ./
 COPY lib lib
