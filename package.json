@@ -1,6 +1,6 @@
 {
   "name": "@relations-dil/dotroute",
-  "version": "0.6.4",
+  "version": "0.6.5",
   "description": "Universal CRUD screens for any Relations API: doTRoute controllers and UIkit 3 templates that build list, create, retrieve, update and delete from the API's own model descriptions.",
   "license": "MIT",
   "author": "Gaffer Fitch",

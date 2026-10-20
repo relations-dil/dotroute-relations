@@ -6,6 +6,7 @@ All notable changes to this project are recorded here, newest first. Format foll
 ## [Unreleased]
 
 ### Added
+- **`RelationsDR.start({model_path})`** (#21): where the API serves its models, with its trailing slash, `"api/"` by default, so an app whose API serves them under `api/model/` starts with `RelationsDR.start({model_path: "api/model/"})`. A model's url is `model_path` plus its singular name (`DRApp.model_path`, which can also be set before `start()`); `GET api/model`, the list of models, is the same either way. Apps that don't set it change nothing.
 - **The package `@relations-dil/dotroute`** (#17): the generic Relations UI that was copied into every app (`relations.js` and its templates) as one script, `dist/relations.js`, with the templates inlined, built by `node build.js` from `lib/`. It needs `dotroute`, `dot` and `@unum-pillars/uikit` (peer dependencies) and no jQuery. `RelationsDR.start()` fetches the models, adds the home route and the models' routes, and starts routing, so an app's `service.js` is one line.
 - The script's global is `RelationsDR`, not `Relations`, so a page can also load `@relations-dil/relations`, whose global is `Relations`.
 - The Jenkinsfile builds the gui image, and builds, tests and lints the example API, after the package's stages (#19).
