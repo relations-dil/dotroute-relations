@@ -15,51 +15,76 @@ NPM=-v ${PWD}/README.md:/opt/service/README.md \
 # Mount ~/.npmrc only when it exists: a missing mount source gets created as a directory.
 NPMRC=$(shell test -f ${HOME}/.npmrc && echo "-v ${HOME}/.npmrc:/root/.npmrc")
 
-.PHONY: build shell test lint setup version pack publish up down tag untag
+.PHONY: build shell test lint setup new version sync release-check release test-release pack publish up down tag untag help
+.DEFAULT_GOAL := help
 
-build:
+build: ## Builds the docker image
 	docker build . -t $(ACCOUNT)/$(IMAGE):$(VERSION)
 
-shell:
+shell: ## Opens a shell in the container
 	docker run $(TTY) $(VOLUMES) $(ACCOUNT)/$(IMAGE):$(VERSION) sh
 
-test:
+test: ## Builds dist/relations.js, then runs the tests with coverage
 	docker run $(TTY) $(VOLUMES) $(ACCOUNT)/$(IMAGE):$(VERSION) npm test
 
-lint:
+lint: ## Runs ESLint
 	docker run $(TTY) $(VOLUMES) $(ACCOUNT)/$(IMAGE):$(VERSION) npm run lint
 
 # Pack it, install the tarball into an empty project, and use it the way a consumer would.
-setup:
+setup: ## Packs it, installs the tarball in an empty project, uses it
 	docker run $(TTY) $(VOLUMES) $(NPM) $(ACCOUNT)/$(IMAGE):$(VERSION) sh -c "cp -r /opt/service /opt/install && cd /opt/install && \
 	npm pack >/dev/null && \
 	mkdir /opt/consumer && cd /opt/consumer && npm init -y >/dev/null && npm install /opt/install/relations-dil-dotroute-*.tgz >/dev/null && \
 	test -f node_modules/@relations-dil/dotroute/dist/relations.js && \
 	node -e \"const R = require('@relations-dil/dotroute'); if (typeof R.install != 'function' || typeof R.start != 'function') process.exit(1); console.log('ok', Object.keys(R).join(' '))\""
 
-# Make package.json and the lockfile say what VERSION says.
-version:
+# Releases: make new starts one, make release-check says where it's up to and what would stop it, make release finishes it.
+# V is +0.0.1 (the default), +0.1, +1 or a version outright, and B names the branch. The work is in scripts/.
+V?=+0.0.1
+B?=
+
+new: ## Starts a release: next version, branch, VERSION, package files, changelog (V=+0.0.1|+0.1|+1|x.y.z, B=name)
+	@sh scripts/new.sh "$(V)" "$(B)"
+
+version: ## Sets VERSION and the package files (V=+0.0.1|+0.1|+1|x.y.z)
+	@sh scripts/version.sh write "$(V)"
+	@$(MAKE) build sync
+
+sync: ## Makes package.json and the lockfile say what VERSION says
 	docker run $(TTY) $(VOLUMES) $(ACCOUNT)/$(IMAGE):$(VERSION) npm version $(VERSION) --no-git-tag-version --allow-same-version
 
-pack:
+release-check: ## Says where the release is up to and what would stop it
+	@sh scripts/release-check.sh
+
+release: ## Does what's left of the release: checks, npm, the tag
+	@sh scripts/release.sh
+
+# Tests the release scripts against a throwaway repo and a fake registry, nothing real is touched
+test-release: ## Tests the release scripts against a throwaway repo and a fake registry
+	docker run --rm $(TTY) -v ${PWD}/scripts:/opt/scripts python:3 sh /opt/scripts/test-release.sh
+
+pack: ## Lists what would be published
 	docker run $(TTY) $(VOLUMES) $(NPM) $(ACCOUNT)/$(IMAGE):$(VERSION) sh -c "npm version $(VERSION) --no-git-tag-version --allow-same-version >/dev/null && npm pack --dry-run"
 
-publish:
+publish: ## Publishes the version to npm
 	@test -f ${HOME}/.npmrc || (echo "no ${HOME}/.npmrc to publish with" && exit 1)
 	docker run $(TTY) $(VOLUMES) $(NPM) $(NPMRC) $(ACCOUNT)/$(IMAGE):$(VERSION) sh -c "npm version $(VERSION) --no-git-tag-version --allow-same-version >/dev/null && npm publish"
 
-up:
+up: ## Runs the example with Tilt
 	kubectx docker-desktop
 	tilt --port $(TILT_PORT) up
 
-down:
+down: ## Stops the example
 	kubectx docker-desktop
 	tilt down
 
-tag:
-	-git tag -a $(VERSION) -m "Version $(VERSION)"
+tag: ## Tags the version and pushes the tag
+	git rev-parse -q --verify refs/tags/$(VERSION) || git tag -a $(VERSION) -m "Version $(VERSION)"
 	git push origin --tags
 
-untag:
+untag: ## Removes the version's tag
 	-git tag -d $(VERSION)
 	git push origin ":refs/tags/$(VERSION)"
+
+help: ## Lists the targets
+	@awk -F ':.*## ' '/^[a-z-]+:.*## /{printf "%-16s %s\n", $$1, $$2}' $(MAKEFILE_LIST)
