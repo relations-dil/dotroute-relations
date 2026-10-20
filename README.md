@@ -67,7 +67,21 @@ make test     # builds dist/relations.js, then the tests with coverage
 make lint     # ESLint
 make setup    # pack it, install it in an empty project, use it
 make pack     # what would be published
+make help     # every target
 ```
+
+### Releasing
+
+Releases work like the Python repos': `make new` starts one, `make release-check` says where it is and what would stop it, and `make release` finishes it. Jenkins runs `make release` on `main`, so merging the release PR publishes it.
+
+```bash
+make new                  # the next version (V=+0.0.1, +0.1, +1 or x.y.z; B=name for the branch): VERSION, package.json, the lockfile, the changelog
+make release-check        # released, tag-pending, publish-pending or unreleased, and what's in the way
+make release              # from a clean main: the checks, npm publish, wait for npm, the tag
+make test-release         # the release scripts, against a throwaway repo and a fake registry
+```
+
+`make release` can be run again after a failure: it picks up at what's left (publishing, then the tag).
 
 ## The example
 
