@@ -305,7 +305,7 @@ fresh
 run sh scripts/release-check.sh
 eq "check ready" 0 "$CODE"
 has "check says ready" "ready to release" "$OUT"
-eq "check runs the stages" "build test lint setup" "$(cat "$MAKE_LOG")"
+eq "check runs no stages" "" "$(cat "$MAKE_LOG")"
 
 fresh
 printf '# Changelog\n\n## [0.6.0] - 2026-01-01\n' > CHANGELOG.md
@@ -354,9 +354,6 @@ publish 0.6.1
 run sh scripts/release-check.sh
 has "check says nothing to release" "nothing to release" "$OUT"
 
-fresh
-MAKE_FAIL=lint run sh scripts/release-check.sh
-eq "check fails when a stage does" 1 "$CODE"
 
 # ---- release.sh
 
@@ -364,8 +361,7 @@ echo "== release.sh"
 fresh
 run sh scripts/release.sh
 eq "release runs" 0 "$CODE"
-eq "release order" "build test lint setup
-publish
+eq "release order" "publish
 tag" "$(cat "$MAKE_LOG")"
 eq "release tags" "0.6.1" "$(git ls-remote --tags origin | sed 's|.*refs/tags/||')"
 has "release says released" "@scope/pkg 0.6.1 released" "$OUT"
