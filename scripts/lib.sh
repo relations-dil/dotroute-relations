@@ -85,7 +85,6 @@ check() {
     if [ "$current" != tag-pending ]; then
         found=$(problems)
         [ -z "$found" ] || { echo "$found"; return 1; }
-        make build test lint setup || return 1
     fi
 
     echo "ready to release"

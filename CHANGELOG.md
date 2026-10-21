@@ -5,6 +5,10 @@ All notable changes to this project are recorded here, newest first. Format foll
 
 ## [Unreleased]
 
+
+### Changed
+- `make release-check` and `make release` don't run `build`, `test`, `lint` and `setup` again: the Jenkins stages have just run them before the release stage, so it was the same work twice. Run them yourself before checking by hand, as `make release-check` is only the checks now (relations-dil/python-relations#90).
+
 ## [0.6.5] - 2026-10-20
 
 ### Added
