@@ -1,5 +1,6 @@
 ACCOUNT=gaf3
 IMAGE=dotroute-relations
+INSTALL=node:22.9.0-alpine3.20
 VERSION?=$(shell cat VERSION)
 TILT_PORT=6850
 TTY=$(shell if tty -s; then echo "-it"; fi)
@@ -15,7 +16,7 @@ NPM=-v ${PWD}/README.md:/opt/service/README.md \
 # Mount ~/.npmrc only when it exists: a missing mount source gets created as a directory.
 NPMRC=$(shell test -f ${HOME}/.npmrc && echo "-v ${HOME}/.npmrc:/root/.npmrc")
 
-.PHONY: build shell test lint setup new version sync release-check release test-release pack publish up down tag untag help
+.PHONY: build shell test lint setup new version sync release-check release verify test-release pack publish up down tag untag help
 .DEFAULT_GOAL := help
 
 build: ## Builds the docker image
@@ -48,16 +49,18 @@ new: ## Starts a release: next version, branch, VERSION, package files, changelo
 
 version: ## Sets VERSION and the package files (V=+0.0.1|+0.1|+1|x.y.z)
 	@sh scripts/version.sh write "$(V)"
-	@$(MAKE) build sync
 
 sync: ## Makes package.json and the lockfile say what VERSION says
-	docker run $(TTY) $(VOLUMES) $(ACCOUNT)/$(IMAGE):$(VERSION) npm version $(VERSION) --no-git-tag-version --allow-same-version
+	docker run --rm $(TTY) -v ${PWD}/package.json:/opt/service/package.json -v ${PWD}/package-lock.json:/opt/service/package-lock.json -w /opt/service $(INSTALL) npm version $(VERSION) --no-git-tag-version --allow-same-version
 
 release-check: ## Says where the release is up to and what would stop it
 	@sh scripts/release-check.sh
 
-release: ## Does what's left of the release: checks, npm, the tag
+release: ## Does what's left of the release: checks, npm, a clean install, the tag
 	@sh scripts/release.sh
+
+verify: ## Installs the version from npm in a clean container
+	@sh scripts/verify.sh
 
 # Tests the release scripts against a throwaway repo and a fake registry, nothing real is touched
 test-release: ## Tests the release scripts against a throwaway repo and a fake registry

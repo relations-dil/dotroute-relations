@@ -49,6 +49,9 @@ echo "$current $new" | awk '
 
 ! listed "$new" || fail "$(package) $new is already published"
 
-[ "$mode" = write ] && echo "$new" > VERSION
+if [ "$mode" = write ]; then
+    echo "$new" > VERSION
+    make sync || exit 1
+fi
 
 echo "$new"

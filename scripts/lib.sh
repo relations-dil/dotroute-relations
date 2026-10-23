@@ -15,12 +15,13 @@ version() {
     cat VERSION
 }
 
-# listed version [name]: whether the registry has the version of the package (or another), it lags
+# listed version [name]: whether the registry has the version of the package (or another), it lags. A scoped name's
+# slash is encoded, as the registry wants it.
 listed() {
     curl -sfL -o /dev/null "$NPM_URL/$(echo "${2:-$(package)}" | sed 's|/|%2F|')/$1"
 }
 
-# wait_for: waits for the version to show up on the registry, it lags for a bit after a publish
+# wait_for: waits for the version to show up on the registry, it lags for minutes after a publish
 wait_for() {
     tries=0
     while [ "$tries" -lt "$WAIT_TRIES" ]; do
@@ -61,9 +62,10 @@ state() {
 # problems: everything that would stop a release
 problems() {
     grep -Eq "^## \[$(version)\] - [^ ]" CHANGELOG.md || echo "CHANGELOG.md has no ## [$(version)] - <date> section"
-    [ "$(grep -m1 '"version"' package.json | cut -d'"' -f4)" = "$(version)" ] || echo "package.json isn't at $(version), make sync"
-    [ "$(grep -m1 '"version"' package-lock.json | cut -d'"' -f4)" = "$(version)" ] || echo "package-lock.json isn't at $(version), make sync"
-    grep -E '^ *"[^"]+": *"(git\+|git:|github:)' package.json | grep -v '"url"' | sed 's/^ */package.json has a git pin: /'
+    [ "$(grep -m1 '"version"' package.json | cut -d'"' -f4)" = "$(version)" ] || echo "package.json isn't at $(version), make sync does that"
+    [ ! -f package-lock.json ] || [ "$(grep -m1 '"version"' package-lock.json | cut -d'"' -f4)" = "$(version)" ] || echo "package-lock.json isn't at $(version), make sync does that"
+    awk '/"(dependencies|devDependencies|peerDependencies|optionalDependencies)": *\{/ { deps = 1; next } /\}/ { deps = 0 }
+        deps && /: *"(git\+|git:|github:|file:|https?:)/ { sub(/^ */, ""); print "package.json has a pin: " $0 }' package.json
     # the floor of each dependency has to be on npm
     awk '/"(dependencies|peerDependencies)": *\{/ { inside = 1; next } inside && /\}/ { inside = 0 } inside { print }' package.json \
         | sed -En 's/^ *"([^"]+)": *"[^0-9]*([0-9]+\.[0-9]+\.[0-9]+)[^"]*".*/\1 \2/p' | while read -r name floor; do
@@ -85,6 +87,7 @@ check() {
     if [ "$current" != tag-pending ]; then
         found=$(problems)
         [ -z "$found" ] || { echo "$found"; return 1; }
+        make pack || return 1
     fi
 
     echo "ready to release"
