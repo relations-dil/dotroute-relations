@@ -1,8 +1,7 @@
 #!/bin/sh
 # new.sh [+0.0.1|+0.1|+1|x.y.z] [branch name]
 # Starts a release. From a clean main that's level with origin: works out the version, makes the branch (gaf3/name,
-# or gaf3/version), writes VERSION, package.json, the lockfile and the changelog section for it, and commits.
-# VERSION_FILES adds files to the commit.
+# or gaf3/version), writes VERSION (and package.json with make sync) and the changelog section for it, and commits. VERSION_FILES adds files to the commit.
 
 . "$(dirname "$0")/lib.sh"
 
@@ -19,9 +18,7 @@ branch="$prefix/${name:-$new}"
 git switch -q -c "$branch" || exit 1
 
 echo "$new" > VERSION
-
-# package.json and the lockfile say what VERSION says, in an image of the new version
-make build sync > /dev/null || exit 1
+make sync || exit 1
 
 # the changelog gets a dated section: Unreleased becomes it, else it goes above the newest version, else at the end
 if ! grep -Eq "^## \[$new\] - [^ ]" CHANGELOG.md; then
@@ -37,7 +34,7 @@ if ! grep -Eq "^## \[$new\] - [^ ]" CHANGELOG.md; then
 fi
 
 # shellcheck disable=SC2086
-git add VERSION package.json package-lock.json CHANGELOG.md $VERSION_FILES
+git add VERSION CHANGELOG.md package.json package-lock.json $VERSION_FILES
 git commit -q -m "Version $new"
 
 echo "$branch: $new"

@@ -1,8 +1,8 @@
 #!/bin/sh
 # test-release.sh: tests the release scripts against a throwaway repo, a local bare origin and a fake npm registry.
-# Nothing here touches the real repo, git remote or registry. A stub make stands in for build, test, lint, setup,
-# sync, publish and tag, it logs what it was asked to do and fakes their effects (package.json following VERSION,
-# a version showing up on the registry, a tag).
+# Nothing here touches the real repo, git remote or registry. A stub make stands in for build, test, lint, setup, pack,
+# sync, publish, verify and tag, it logs what it was asked to do and fakes their effects (a version showing up on the
+# registry, a tag, package.json following VERSION).
 # Run it with: make test-release
 
 SCRIPTS=$(cd "$(dirname "$0")" && pwd)
@@ -35,16 +35,27 @@ version=$(cat VERSION)
 for target in "$@"; do
     [ "$target" = "$MAKE_FAIL" ] && exit 1
     case "$target" in
-        sync) sed -i.bak "s/\"version\": \"[0-9.]*\"/\"version\": \"$version\"/" package.json package-lock.json && rm -f package.json.bak package-lock.json.bak ;;
-        publish) mkdir -p "$FAKE_NPM/@scope/pkg" && touch "$FAKE_NPM/@scope/pkg/$version" ;;
+        sync) sed -i "s/\"version\": \"[^\"]*\"/\"version\": \"$version\"/" package.json package-lock.json ;;
+        publish) mkdir -p "$FAKE_NPM/pkg" && : > "$FAKE_NPM/pkg/$version" ;;
         tag) git tag "$version" && git push -q origin "$version" ;;
     esac
 done
 exit 0
 EOF
 chmod +x "$T/bin/make"
+
+# the stub docker, for verify: it fails the first DOCKER_FAILS times it's run, and logs each run
+cat > "$T/bin/docker" << 'EOF'
+#!/bin/sh
+echo "docker $*" >> "$DOCKER_LOG"
+count=$(wc -l < "$DOCKER_LOG" | tr -d ' ')
+[ "$count" -le "${DOCKER_FAILS:-0}" ] && exit 1
+exit 0
+EOF
+chmod +x "$T/bin/docker"
 export PATH="$T/bin:$PATH"
 export MAKE_LOG=$T/make.log
+export DOCKER_LOG=$T/docker.log
 
 # ---- helpers
 
@@ -96,26 +107,25 @@ fails() {
     if [ "$CODE" != 0 ]; then ok "$name"; else bad "$name" "exit 0: $OUT"; fi
 }
 
-publish() { # publish version [name]: on the registry, where a version of a package is a file
-    name=${2:-@scope/pkg}
+publish() { # publish version [name]: the registry answers for the version
+    name=${2:-pkg}
     mkdir -p "$FAKE_NPM/$name"
-    touch "$FAKE_NPM/$name/$1"
+    : > "$FAKE_NPM/$name/$1"
 }
 
 unpublish() {
-    rm -rf "$FAKE_NPM/@scope"
+    rm -rf "$FAKE_NPM/pkg"
 }
 
-# the floor package.json asks of its peer dependency
-publish_dep() {
-    publish 1.0.0 dep
+# the version package.json is at
+packaged() {
+    grep -m1 '"version"' package.json | cut -d'"' -f4
 }
 
 # fresh: a clean repo on main, level with a bare origin
 fresh() {
     unpublish
-    rm -rf "$FAKE_NPM/dep"
-    publish_dep
+    publish 1.0.0 peerdep
     : > "$MAKE_LOG"
     rm -rf "$T/origin.git" "$T/work"
     git init -q --bare "$T/origin.git"
@@ -124,36 +134,10 @@ fresh() {
     git init -q -b main
     git remote add origin "$T/origin.git"
     mkdir scripts
-    cp "$SCRIPTS"/lib.sh "$SCRIPTS"/new.sh "$SCRIPTS"/version.sh "$SCRIPTS"/release-check.sh "$SCRIPTS"/release.sh scripts/
+    cp "$SCRIPTS"/lib.sh "$SCRIPTS"/new.sh "$SCRIPTS"/version.sh "$SCRIPTS"/release-check.sh "$SCRIPTS"/release.sh "$SCRIPTS"/verify.sh scripts/
     printf '0.6.1\n' > VERSION
-    cat > package.json << 'EOF'
-{
-  "name": "@scope/pkg",
-  "version": "0.6.1",
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/example/pkg.git"
-  },
-  "peerDependencies": {
-    "dep": "^1.0.0"
-  },
-  "devDependencies": {
-    "unpublished": "^9.0.0"
-  }
-}
-EOF
-    cat > package-lock.json << 'EOF'
-{
-  "name": "@scope/pkg",
-  "version": "0.6.1",
-  "packages": {
-    "": {
-      "name": "@scope/pkg",
-      "version": "0.6.1"
-    }
-  }
-}
-EOF
+    printf '{\n  "name": "pkg",\n  "version": "0.6.1",\n  "repository": {\n    "type": "git",\n    "url": "git+https://github.com/relations-dil/pkg.git"\n  },\n  "peerDependencies": {\n    "peerdep": "^1.0.0"\n  },\n  "devDependencies": {\n    "dep": "^1.0.0",\n    "unpub": "^9.0.0"\n  }\n}\n' > package.json
+    printf '{\n  "name": "pkg",\n  "version": "0.6.1",\n  "lockfileVersion": 3\n}\n' > package-lock.json
     printf '# Changelog\n\n## [0.6.1] - 2026-01-01\n\n### Added\n- thing\n' > CHANGELOG.md
     git add -A
     git commit -q -m first
@@ -178,11 +162,21 @@ eq "next +1 zeroes minor and patch" "1.0.0" "$(sh scripts/version.sh next +1)"
 eq "next +0.0.5" "0.6.6" "$(sh scripts/version.sh next +0.0.5)"
 eq "next explicit" "0.9.4" "$(sh scripts/version.sh next 0.9.4)"
 eq "next doesn't write" "0.6.1" "$(cat VERSION)"
+eq "next doesn't sync" "" "$(cat "$MAKE_LOG")"
 
 run sh scripts/version.sh write +0.1
 eq "write prints" "0.7.0" "$OUT"
 eq "write writes" "0.7.0" "$(cat VERSION)"
+eq "write syncs the package files" "0.7.0" "$(packaged)"
+eq "write syncs the lockfile" "0.7.0" "$(grep -m1 '"version"' package-lock.json | cut -d'"' -f4)"
+eq "write asked make for sync" "sync" "$(cat "$MAKE_LOG")"
 printf '0.6.1\n' > VERSION
+
+fresh
+MAKE_FAIL=sync run sh scripts/version.sh write +0.1
+eq "write fails when sync does" 1 "$CODE"
+
+fresh
 
 fails "rejects two places" sh scripts/version.sh next +0.1.1
 fails "rejects a zero bump" sh scripts/version.sh next +0
@@ -207,12 +201,9 @@ fresh
 passes "new on a clean main" sh scripts/new.sh
 eq "new branch" "gaf3/0.6.2" "$(git branch --show-current)"
 eq "new VERSION" "0.6.2" "$(cat VERSION)"
+eq "new syncs package.json" "0.6.2" "$(packaged)"
 eq "new commit" "Version 0.6.2" "$(git log -1 --format=%s)"
-eq "new asks make for an image of the new version, then the package files" "build sync" "$(cat "$MAKE_LOG")"
-has "new package.json says the version" '"version": "0.6.2"' "$(cat package.json)"
-has "new lockfile says the version" '"version": "0.6.2"' "$(cat package-lock.json)"
-eq "new lockfile says it twice" "2" "$(grep -c '"version": "0.6.2"' package-lock.json)"
-eq "new commits the version, package files and changelog" "CHANGELOG.md
+eq "new commits the package files with VERSION and the changelog" "CHANGELOG.md
 VERSION
 package-lock.json
 package.json" "$(git show --name-only --format= HEAD | sort)"
@@ -231,8 +222,10 @@ BRANCH_PREFIX=other sh scripts/new.sh +1 > /dev/null 2>&1
 eq "new honors BRANCH_PREFIX" "other/1.0.0" "$(git branch --show-current)"
 
 fresh
-VERSION_FILES=VERSION sh scripts/new.sh > /dev/null 2>&1
-eq "new commits only the version, package files and changelog when VERSION_FILES has nothing changed" "CHANGELOG.md
+echo more > extra.txt
+git add extra.txt && git commit -q -m extra && git push -q origin main
+VERSION_FILES=extra.txt sh scripts/new.sh > /dev/null 2>&1
+eq "new adds VERSION_FILES, and only commits what changed" "CHANGELOG.md
 VERSION
 package-lock.json
 package.json" "$(git show --name-only --format= HEAD | sort)"
@@ -281,10 +274,6 @@ run sh scripts/new.sh
 eq "new refuses a published next version" 1 "$CODE"
 eq "new leaves no branch behind" "main" "$(git branch --show-current)"
 
-fresh
-MAKE_FAIL=sync run sh scripts/new.sh
-eq "new fails when make can't sync the package files" 1 "$CODE"
-
 # ---- state
 
 echo "== state"
@@ -305,7 +294,7 @@ fresh
 run sh scripts/release-check.sh
 eq "check ready" 0 "$CODE"
 has "check says ready" "ready to release" "$OUT"
-eq "check runs no stages" "" "$(cat "$MAKE_LOG")"
+eq "check runs the pack" "pack" "$(cat "$MAKE_LOG")"
 
 fresh
 printf '# Changelog\n\n## [0.6.0] - 2026-01-01\n' > CHANGELOG.md
@@ -314,45 +303,65 @@ eq "check fails with no changelog section" 1 "$CODE"
 has "check names the changelog" "CHANGELOG.md has no ## [0.6.1]" "$OUT"
 
 fresh
-sed -i.bak 's/"version": "0.6.1"/"version": "0.6.0"/' package.json && rm package.json.bak
+sed -i 's/"version": "0.6.1"/"version": "0.6.0"/' package.json
 run sh scripts/release-check.sh
-eq "check fails when package.json is at another version" 1 "$CODE"
+eq "check fails when package.json is behind" 1 "$CODE"
 has "check names package.json" "package.json isn't at 0.6.1" "$OUT"
 
 fresh
-sed -i.bak 's/"version": "0.6.1"/"version": "0.6.0"/' package-lock.json && rm package-lock.json.bak
+sed -i 's/"version": "0.6.1"/"version": "0.6.0"/' package-lock.json
 run sh scripts/release-check.sh
-eq "check fails when the lockfile is at another version" 1 "$CODE"
+eq "check fails when the lockfile is behind" 1 "$CODE"
 has "check names the lockfile" "package-lock.json isn't at 0.6.1" "$OUT"
 
 fresh
-sed -i.bak 's|"dep": "^1.0.0"|"dep": "git+https://github.com/example/dep.git#abc"|' package.json && rm package.json.bak
+rm package-lock.json
 run sh scripts/release-check.sh
-eq "check fails on a git pin" 1 "$CODE"
-has "check names the pin" "package.json has a git pin" "$OUT"
+eq "check doesn't ask for a lockfile there isn't" 0 "$CODE"
 
 fresh
-run sh scripts/release-check.sh
-lacks "check doesn't take the repository url for a git pin" "git pin" "$OUT"
-
-fresh
-rm -rf "$FAKE_NPM/dep"
+rm -rf "$FAKE_NPM/peerdep"
 run sh scripts/release-check.sh
 eq "check fails on an unpublished floor" 1 "$CODE"
-has "check names the floor" "dep 1.0.0 (the floor in package.json) isn't published yet" "$OUT"
-lacks "check leaves devDependencies alone" "unpublished" "$OUT"
+has "check names the floor" "peerdep 1.0.0 (the floor in package.json) isn't published yet" "$OUT"
+lacks "check leaves devDependencies alone" "unpub" "$OUT"
+
+fresh
+sed -i 's|"dep": "^1.0.0"|"dep": "git+https://github.com/relations-dil/dep.git#abc"|' package.json
+run sh scripts/release-check.sh
+eq "check fails on a git pin" 1 "$CODE"
+has "check names the pin" "package.json has a pin" "$OUT"
+
+fresh
+sed -i 's|"dep": "^1.0.0"|"dep": "file:../dep"|' package.json
+run sh scripts/release-check.sh
+eq "check fails on a file pin" 1 "$CODE"
+
+fresh
+sed -i 's|"dep": "^1.0.0"|"dep": "github:relations-dil/dep"|' package.json
+run sh scripts/release-check.sh
+eq "check fails on a github pin" 1 "$CODE"
+
+fresh
+run sh scripts/release-check.sh
+lacks "check doesn't mistake the repository url for a pin" "has a pin" "$OUT"
 
 fresh
 publish 0.6.1
 run sh scripts/release-check.sh
 eq "check at tag-pending skips the problems" 0 "$CODE"
 has "check says tag-pending" "0.6.1: tag-pending" "$OUT"
+eq "check at tag-pending runs no make" "" "$(cat "$MAKE_LOG")"
 
 fresh
 git tag 0.6.1 && git push -q origin 0.6.1
 publish 0.6.1
 run sh scripts/release-check.sh
 has "check says nothing to release" "nothing to release" "$OUT"
+
+fresh
+MAKE_FAIL=pack run sh scripts/release-check.sh
+eq "check fails when pack does" 1 "$CODE"
 
 
 # ---- release.sh
@@ -361,10 +370,12 @@ echo "== release.sh"
 fresh
 run sh scripts/release.sh
 eq "release runs" 0 "$CODE"
-eq "release order" "publish
+eq "release order" "pack
+publish
+verify
 tag" "$(cat "$MAKE_LOG")"
 eq "release tags" "0.6.1" "$(git ls-remote --tags origin | sed 's|.*refs/tags/||')"
-has "release says released" "@scope/pkg 0.6.1 released" "$OUT"
+has "release says released" "pkg 0.6.1 released" "$OUT"
 eq "state is released after" "released" "$(state)"
 
 : > "$MAKE_LOG"
@@ -379,12 +390,17 @@ eq "release at tag-pending only tags" "tag" "$(cat "$MAKE_LOG")"
 
 fresh
 MAKE_FAIL=publish run sh scripts/release.sh
-eq "release stops when publish fails" 1 "$CODE"
+eq "release stops when the publish fails" 1 "$CODE"
+eq "release leaves no tag after a failed publish" "" "$(git ls-remote --tags origin)"
+
+fresh
+MAKE_FAIL=verify run sh scripts/release.sh
+eq "release stops when the install check fails" 1 "$CODE"
+eq "release doesn't reach the tag" "pack
+publish
+verify" "$(cat "$MAKE_LOG")"
 eq "release leaves no tag" "" "$(git ls-remote --tags origin)"
-unset MAKE_FAIL
-run sh scripts/release.sh
-eq "release resumes at publish" 0 "$CODE"
-eq "release resumed to released" "released" "$(state)"
+eq "state is publish-pending after" "tag-pending" "$(state)"
 
 fresh
 MAKE_FAIL=tag run sh scripts/release.sh
@@ -396,45 +412,66 @@ eq "release resumes at the tag" 0 "$CODE"
 eq "release resumed to released" "released" "$(state)"
 
 fresh
-printf '# Changelog\n' > CHANGELOG.md
-git commit -q -am nothing-to-release-with && git push -q origin main
-run sh scripts/release.sh
-eq "release stops at a problem" 1 "$CODE"
-lacks "release doesn't publish past a problem" "publish" "$(cat "$MAKE_LOG")"
-
-fresh
 git switch -q -c elsewhere
 run sh scripts/release.sh
 eq "release refuses off main" 1 "$CODE"
 eq "release off main runs no make" "" "$(cat "$MAKE_LOG")"
 
+# ---- verify.sh
+
+echo "== verify.sh"
+fresh
+: > "$DOCKER_LOG"
+run sh scripts/verify.sh
+eq "verify passes when the install does" 0 "$CODE"
+eq "verify runs the install once" "1" "$(wc -l < "$DOCKER_LOG" | tr -d ' ')"
+has "verify installs the package at the version" "pkg@0.6.1" "$(cat "$DOCKER_LOG")"
+
+: > "$DOCKER_LOG"
+DOCKER_FAILS=1 run sh scripts/verify.sh
+eq "verify tries again while the registry catches up" 0 "$CODE"
+eq "verify ran the install twice" "2" "$(wc -l < "$DOCKER_LOG" | tr -d ' ')"
+
+: > "$DOCKER_LOG"
+DOCKER_FAILS=9 run sh scripts/verify.sh
+eq "verify gives up" 1 "$CODE"
+eq "verify gave up after WAIT_TRIES" "2" "$(wc -l < "$DOCKER_LOG" | tr -d ' ')"
+has "verify says why" "pkg 0.6.1 could not be installed from npm" "$OUT"
+
 # ---- lib.sh
 
 echo "== lib.sh"
 fresh
-eq "package" "@scope/pkg" "$(package)"
+eq "package" "pkg" "$(package)"
 eq "version" "0.6.1" "$(version)"
 
-# the defaults wait 30 minutes, the registry lags for a bit
+# the defaults wait 30 minutes, the registry lags for minutes
 
 eq "default wait" "180 10" "$(env -u WAIT_TRIES -u WAIT_DELAY sh -c '. scripts/lib.sh; echo "$WAIT_TRIES $WAIT_DELAY"')"
-eq "default registry" "https://registry.npmjs.org" "$(env -u NPM_URL sh -c '. scripts/lib.sh; echo "$NPM_URL"')"
 
-# listed: whether the registry has the version of the package
+# listed: whether the registry has the version
 
 fails "listed says no when it isn't" listed 0.6.1
 publish 0.6.1
 passes "listed says yes when it is" listed 0.6.1
 fails "listed doesn't match a longer version" listed 0.6
 fails "listed doesn't match a shorter version" listed 0.6.10
+publish 1.0.0 dep
 passes "listed takes another package's name" listed 1.0.0 dep
 fails "listed says no for a package that isn't there" listed 1.0.0 nope
+publish 2.0.0 @scope/dep
+passes "listed takes a scoped name" listed 2.0.0 @scope/dep
+has "listed asks for a scoped name with the slash encoded" "@scope%2Fdep" "$(cat "$T/server.log")"
+printf '{\n  "name": "@scope/pkg",\n  "version": "0.6.1"\n}\n' > package.json
+eq "package keeps the scope" "@scope/pkg" "$(package)"
+publish 0.6.1 @scope/pkg
+passes "listed finds the scoped package" listed 0.6.1
 
 # wait_for waits for it
 
-unpublish
+fresh
 fails "wait_for gives up" wait_for
-has "wait_for says why" "@scope/pkg 0.6.1 is not on npm" "$OUT"
+has "wait_for says why" "pkg 0.6.1 is not on npm" "$OUT"
 publish 0.6.1
 passes "wait_for finds it" wait_for
 

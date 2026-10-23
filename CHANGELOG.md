@@ -5,6 +5,13 @@ All notable changes to this project are recorded here, newest first. Format foll
 
 ## [Unreleased]
 
+### Added
+- `make verify` installs the published version in a clean container and loads it, tried again while the registry catches up, and `make release` runs it after the wait for the registry and before the tag, as the other TypeScript repos do.
+
+### Changed
+- Checks before a release: a scoped package's slash is encoded when the registry is asked about it, `package-lock.json` has to be at `VERSION` along with `package.json`, and the floor of each dependency and peer dependency has to be published on npm already. The release scripts and their tests are the same in every TypeScript repo.
+- Release checks: `make release-check` also runs `make pack`, and refuses `file:` and `http(s):` pins as well as git ones, in `devDependencies` and `optionalDependencies` too. `make sync` and `make version` no longer need the image of the new version, so `make new` no longer builds one.
+
 
 ### Changed
 - `make release-check` and `make release` don't run `build`, `test`, `lint` and `setup` again: the Jenkins stages have just run them before the release stage, so it was the same work twice. Run them yourself before checking by hand, as `make release-check` is only the checks now (relations-dil/python-relations#90).
