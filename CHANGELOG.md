@@ -9,7 +9,6 @@ All notable changes to this project are recorded here, newest first. Format foll
 - `make verify` installs the published version in a clean container and loads it, tried again while the registry catches up, and `make release` runs it after the wait for the registry and before the tag, as the other TypeScript repos do.
 
 ### Changed
-- `make new` works on the ticket branch you're on: it writes VERSION, the package files and the changelog section there and commits, makes no branch of its own, and refuses on main, since we branch from the ticket. `B=` and `BRANCH_PREFIX` are gone (relations-dil/python-relations#98).
 - Checks before a release: a scoped package's slash is encoded when the registry is asked about it, `package-lock.json` has to be at `VERSION` along with `package.json`, and the floor of each dependency and peer dependency has to be published on npm already. The release scripts and their tests are the same in every TypeScript repo.
 - Release checks: `make release-check` also runs `make pack`, and refuses `file:` and `http(s):` pins as well as git ones, in `devDependencies` and `optionalDependencies` too. `make sync` and `make version` no longer need the image of the new version, so `make new` no longer builds one.
 
