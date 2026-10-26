@@ -42,10 +42,9 @@ setup: ## Packs it, installs the tarball in an empty project, uses it
 # Releases: make new starts one, make release-check says where it's up to and what would stop it, make release finishes it.
 # V is +0.0.1 (the default), +0.1, +1 or a version outright, and B names the branch. The work is in scripts/.
 V?=+0.0.1
-B?=
 
-new: ## Starts a release: next version, branch, VERSION, package files, changelog (V=+0.0.1|+0.1|+1|x.y.z, B=name)
-	@sh scripts/new.sh "$(V)" "$(B)"
+new: ## Starts a release on the ticket branch you're on: next version, VERSION, package files, changelog (V=+0.0.1|+0.1|+1|x.y.z)
+	@sh scripts/new.sh "$(V)"
 
 version: ## Sets VERSION and the package files (V=+0.0.1|+0.1|+1|x.y.z)
 	@sh scripts/version.sh write "$(V)"
